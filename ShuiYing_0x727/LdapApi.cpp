@@ -204,25 +204,47 @@ int LdapApi::connect() {
 
 // 基于资源的约束委派 Resource-based constrained delegation
 VOID LdapApi::RBCD() {
+    wprintf(L"========    基于资源的约束委派    \n\n");
     PWSTR pMyFilter = (PWSTR)L"(&(ObjectClass=computer)(mS-DS-CreatorSID=*))";             // 过滤条件
     PWCHAR pMyAttributes[] = { (PWCHAR)L"mS-DS-CreatorSID", (PWCHAR)L"cn", NULL };      // 查询的属性
     delegationVul(pMyFilter, pMyAttributes);
 }
 
-// 约束委派
+// 约束委派服务账户
 VOID LdapApi::CD() {
+    wprintf(L"\n========    约束委派服务账户   \n");
     PWSTR pMyFilter = (PWSTR)L"(&(samAccountType=805306368)(msds-allowedtodelegateto=*))";             // 过滤条件
     PWCHAR pMyAttributes[] = { (PWCHAR)L"msds-allowedtodelegateto", (PWCHAR)L"cn", NULL };      // 查询的属性
     delegationVul(pMyFilter, pMyAttributes);
 }
-
-// 非约束委派 unconstrained delegation
-VOID LdapApi::ud() {
-    PWSTR pMyFilter = (PWSTR)L"(&(objectClass=computer)(userAccountControl:1.2.840.113556.1.4.803:=524288))";             // 过滤条件
-    PWCHAR pMyAttributes[] = { (PWCHAR)L"userAccountControl", (PWCHAR)L"cn", NULL };      // 查询的属性
+// 约束委派机器账户
+VOID LdapApi::CD1() {
+    wprintf(L"\n========    约束委派机器账户    \n");
+    PWSTR pMyFilter = (PWSTR)L"(&(samAccountType=805306369)(msds-allowedtodelegateto=*))";             // 过滤条件
+    PWCHAR pMyAttributes[] = { (PWCHAR)L"msds-allowedtodelegateto", (PWCHAR)L"cn", NULL };      // 查询的属性
     delegationVul(pMyFilter, pMyAttributes);
 }
 
+// 非约束委派机器账户
+VOID LdapApi::ud() {
+    wprintf(L"\n========    非约束委派机器账户    \n");
+    PWSTR pMyFilter = (PWSTR)L"(&(samAccountType=805306369)(userAccountControl:1.2.840.113556.1.4.803:=524288))";             // 过滤条件
+    PWCHAR pMyAttributes[] = { (PWCHAR)L"userAccountControl", (PWCHAR)L"cn", NULL };      // 查询的属性
+    delegationVul(pMyFilter, pMyAttributes);
+}
+// 非约束委派服务账户
+VOID LdapApi::ud1() {
+    wprintf(L"\n========    非约束委派服务账户    \n");
+    PWSTR pMyFilter = (PWSTR)L"(&(samAccountType=805306368)(userAccountControl:1.2.840.113556.1.4.803:=524288))";             // 过滤条件
+    PWCHAR pMyAttributes[] = { (PWCHAR)L"userAccountControl", (PWCHAR)L"cn", NULL };      // 查询的属性
+    delegationVul(pMyFilter, pMyAttributes);
+}
+void LdapApi::cve_2022_33679() {
+    wprintf(L"\n========    CVE_2022_33679    \n");
+    PWSTR pMyFilter = (PWSTR)L"(&(&(UserAccountControl:1.2.840.113556.1.4.803:=4194304)(!(UserAccountControl:1.2.840.113556.1.4.803:=2)))(!(objectCategory=computer)))";             // 过滤条件
+    PWCHAR pMyAttributes[] = { (PWCHAR)L"userAccountControl", (PWCHAR)L"cn", NULL };      // 查询的属性
+    delegationVul(pMyFilter, pMyAttributes);
+}
 
 
 // 委派漏洞（约束委派和基于资源的约束委派）
@@ -247,6 +269,7 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
     if (errorCode != LDAP_SUCCESS)
     {
         printf("ldap_search_s failed with 0x%0lx \n", errorCode);
+        wprintf(L"\nERROR\n");
         ldap_unbind_s(pLdapConnection);
         if (pSearchResult != NULL)
             ldap_msgfree(pSearchResult);
@@ -266,6 +289,7 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
     if (numberOfEntries == NULL)
     {
         printf("ldap_count_entries failed with 0x%0lx \n", errorCode);
+        wprintf(L"\nNULL\n");
         ldap_unbind_s(pLdapConnection);
         if (pSearchResult != NULL)
             ldap_msgfree(pSearchResult);
@@ -274,7 +298,7 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
     
     // printf("ldap_count_entries succeeded \n");
 
-    printf("The number of entries is: %d \n", numberOfEntries);
+    printf("The number of entries is: %d \n\n", numberOfEntries);
 
 
     //----------------------------------------------------------
@@ -351,9 +375,9 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
                         domainUser = sid2user(pSid, wsHost.data());
                         // wprintf(L"domainUser:%s\n", domainUser.data());
 
-                        sDelegRet = sDelegRet + domainUser + L"\t";
-                        sDelegRet = sDelegRet + swSid + L"\t";
-                        sDelegRet = sDelegRet + L"Resource-based constrained delegation\n";
+                        sDelegRet = sDelegRet + L"name = " +domainUser + L"\t";
+                        sDelegRet = sDelegRet +L" mS-DS-CreatorSID = " + swSid + L"\t";
+                        sDelegRet = sDelegRet + L"RBCD\n";
                     }
                     ldap_value_free_len(attrList);
                 }
@@ -366,8 +390,8 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
                     pLdapConnection,  // Session Handle
                     pEntry,           // Current entry
                     pAttribute);      // Current attribute
-                sDelegRet = sDelegRet + *ppValue + L"\t";
-                sDelegRet = sDelegRet + L"Constrained delegation\n";
+                sDelegRet = sDelegRet + L"msds-allowedtodelegateto = "+ *ppValue + L"\t";
+                sDelegRet = sDelegRet + L"CD\n";
             }
             // 非约束委派
             else if (CompareString(GetThreadLocale(), NORM_IGNORECASE, pAttribute, lstrlenW(pAttribute), L"userAccountControl", lstrlenW(L"userAccountControl")) == 2)
@@ -377,8 +401,8 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
                     pLdapConnection,  // Session Handle
                     pEntry,           // Current entry
                     pAttribute);      // Current attribute
-                sDelegRet = sDelegRet + *ppValue + L"\t";
-                sDelegRet = sDelegRet + L"unconstrained delegation\n";
+                sDelegRet = sDelegRet + L"userAccountControl = " + *ppValue + L"\t";
+                sDelegRet = sDelegRet + L"UD\n";
             }
             else {
                 // 获取属性的值
@@ -387,7 +411,7 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
                     pEntry,           // Current entry
                     pAttribute);      // Current attribute
                 // wprintf(L"%s\t", *ppValue);
-                sDelegRet = sDelegRet + *ppValue + L" --> ";
+                sDelegRet = sDelegRet + *ppValue + L"  -->   ";
             }
 
 
@@ -420,7 +444,7 @@ int LdapApi::delegationVul(PWSTR pMyFilter, PWCHAR pMyAttributes[]) {
     ldap_unbind(pLdapConnection);
     ldap_msgfree(pSearchResult);
     ldap_value_freeW(ppValue);
-    wprintf(L"--------------------------------------------------------------------------------------------\n");
+    //wprintf(L"============================\n\n");
     return 1;
 }
 

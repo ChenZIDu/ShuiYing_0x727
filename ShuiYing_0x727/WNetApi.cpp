@@ -66,7 +66,7 @@ int WNetApi::WNetCancelConnection2Api(LPWSTR lpRemoteName)
 // 获取域机器列表
 std::vector<std::wstring> WNetApi::NetGroupGetUsersApi(LPWSTR servername, LPWSTR groupname)
 {
-	wprintf(L"------------------------------------Get a list of domain computers------------------------------------\n");
+	wprintf(L"========  list computers =======\n");
 
 	DWORD dwLevel = 1;
 	GROUP_USERS_INFO_1* bufptr;
@@ -85,7 +85,7 @@ std::vector<std::wstring> WNetApi::NetGroupGetUsersApi(LPWSTR servername, LPWSTR
 		{
 			// wprintf(L"[%u] %s   ", i, bufptr[i].grui1_name);
 			std::wstring hostname(bufptr[i].grui1_name);
-			hostname.replace(hostname.end() - 1, hostname.end(), 1, NULL);			// 主机名最末尾的$替换为空
+			hostname.replace(hostname.end() - 1, hostname.end(), 1, NULL);	     // 主机名最末尾的$替换为空
 			hostnameList.push_back(hostname.data());							// 
 			wprintf(L"%s\n", hostname.data());
 		}

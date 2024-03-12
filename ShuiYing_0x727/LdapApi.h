@@ -20,9 +20,12 @@ public:
 
 	// 约束委派
 	void CD();
+	void CD1();
 
 	// 非约束委派 unconstrained delegation
 	void ud();
+	void ud1();
+	void cve_2022_33679();
 
 private:
 	std::wstring sHost;
