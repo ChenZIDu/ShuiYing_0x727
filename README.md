@@ -5,9 +5,13 @@
 ## 0x01 介绍
 
 原作者：[Ske](https://github.com/SkewwG)
-团队：[0x727](https://github.com/0x727)，未来一段时间将陆续开源工具，地址：https://github.com/0x727
+
+团队：[0x727](https://github.com/0x727) 地址：https://github.com/0x727
+
 定位：协助红队或甲方人员评估域环境的安全性
+
 功能：**检测域环境内，域机器的本地管理组成员是否存在弱口令和通用口令，对域用户的权限分配以及域内委派查询**
+
 原项目地址：https://github.com/0x727/ShuiYing_0x727
 
 
